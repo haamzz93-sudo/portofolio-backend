@@ -38,21 +38,31 @@ CREATE TABLE IF NOT EXISTS public.experiences (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 4. Enable Row Level Security (RLS) & Public Read Policies
+-- 4. Create Portfolio Config Table for Global Cross-Device Sync
+CREATE TABLE IF NOT EXISTS public.portfolio_config (
+  id TEXT PRIMARY KEY,
+  config_json JSONB NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 5. Enable Row Level Security (RLS) & Public Read Policies
 ALTER TABLE public.projects ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.skills ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.experiences ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.portfolio_config ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Allow Public Read Projects" ON public.projects FOR SELECT USING (true);
 CREATE POLICY "Allow Public Read Skills" ON public.skills FOR SELECT USING (true);
 CREATE POLICY "Allow Public Read Experiences" ON public.experiences FOR SELECT USING (true);
+CREATE POLICY "Allow Public Read Config" ON public.portfolio_config FOR SELECT USING (true);
 
 -- Allow All Operations for Anon Role (Development Mode)
 CREATE POLICY "Allow All Projects Ops" ON public.projects FOR ALL USING (true);
 CREATE POLICY "Allow All Skills Ops" ON public.skills FOR ALL USING (true);
 CREATE POLICY "Allow All Experiences Ops" ON public.experiences FOR ALL USING (true);
+CREATE POLICY "Allow All Config Ops" ON public.portfolio_config FOR ALL USING (true);
 
--- 5. Create Storage Buckets for CV Files & Images
+-- 6. Create Storage Buckets for CV Files & Images
 INSERT INTO storage.buckets (id, name, public) 
 VALUES ('cv-files', 'cv-files', true)
 ON CONFLICT (id) DO NOTHING;

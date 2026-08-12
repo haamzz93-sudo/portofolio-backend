@@ -113,9 +113,15 @@ def get_full_portfolio():
     """Retrieve full portfolio datasets (projects, skills, experiences, profile media)."""
     if supabase_client:
         try:
+            config_res = supabase_client.table("portfolio_config").select("*").eq("id", "main_config").execute()
+            if config_res.data and len(config_res.data) > 0:
+                saved_config = config_res.data[0].get("config_json", {})
+                GLOBAL_PORTFOLIO_CONFIG.update(saved_config)
+            
             projects = supabase_client.table("projects").select("*").execute().data
             skills = supabase_client.table("skills").select("*").execute().data
             experiences = supabase_client.table("experiences").select("*").execute().data
+            
             return {
                 "config": GLOBAL_PORTFOLIO_CONFIG,
                 "projects": projects if projects else GLOBAL_PORTFOLIO_CONFIG["projects"],
@@ -125,14 +131,25 @@ def get_full_portfolio():
         except Exception as e:
             print(f"[Supabase Read Error] {e}")
 
-    return GLOBAL_PORTFOLIO_CONFIG
+    return {"config": GLOBAL_PORTFOLIO_CONFIG}
 
 @app.post("/api/portfolio")
 def save_full_portfolio(config: Dict[str, Any]):
-    """Save full portfolio config globally across all devices."""
+    """Save full portfolio config globally across all devices into Supabase Postgres."""
     global GLOBAL_PORTFOLIO_CONFIG
     GLOBAL_PORTFOLIO_CONFIG.update(config)
-    return {"status": "success", "config": GLOBAL_PORTFOLIO_CONFIG}
+    
+    if supabase_client:
+        try:
+            supabase_client.table("portfolio_config").upsert({
+                "id": "main_config",
+                "config_json": GLOBAL_PORTFOLIO_CONFIG
+            }).execute()
+            return {"status": "success", "db": "supabase_postgres", "config": GLOBAL_PORTFOLIO_CONFIG}
+        except Exception as e:
+            print(f"[Supabase Config Upsert Error] {e}")
+
+    return {"status": "success", "db": "in_memory", "config": GLOBAL_PORTFOLIO_CONFIG}
 
 # ── Projects CRUD Endpoints ──
 @app.get("/api/projects", response_model=List[ProjectItem])
