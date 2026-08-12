@@ -76,6 +76,18 @@ class ProfileItem(BaseModel):
     emailPersonal: str = "haamzz93@gmail.com"
     emailAcademic: str = "ilhameka93@student.uns.ac.id"
 
+# Global Portfolio State Fallback (In-Memory & Supabase Synced)
+GLOBAL_PORTFOLIO_CONFIG = {
+    "cvUrl": "",
+    "avatarUrl": "",
+    "idPhotoUrl": "",
+    "tagline": "Full-Stack Developer · IoT Engineer · AI Enthusiast",
+    "bio": "Mahasiswa Semester 5 D3 Teknik Informatika Universitas Sebelas Maret (UNS) Madiun dengan spesialisasi Full-Stack Web & Mobile Development serta integrasi IoT.",
+    "projects": [],
+    "skills": [],
+    "experiences": []
+}
+
 # ── Health & Info Endpoints ──
 @app.get("/")
 def root():
@@ -87,6 +99,7 @@ def root():
     }
 
 @app.get("/health")
+@app.get("/api/health")
 def health_check():
     return {
         "status": "healthy",
@@ -97,64 +110,29 @@ def health_check():
 # ── Portfolio Consolidated Endpoint ──
 @app.get("/api/portfolio")
 def get_full_portfolio():
-    """Retrieve full portfolio datasets (projects, skills, experiences)."""
+    """Retrieve full portfolio datasets (projects, skills, experiences, profile media)."""
     if supabase_client:
         try:
             projects = supabase_client.table("projects").select("*").execute().data
             skills = supabase_client.table("skills").select("*").execute().data
             experiences = supabase_client.table("experiences").select("*").execute().data
             return {
-                "projects": projects,
-                "skills": skills,
-                "experiences": experiences,
+                "config": GLOBAL_PORTFOLIO_CONFIG,
+                "projects": projects if projects else GLOBAL_PORTFOLIO_CONFIG["projects"],
+                "skills": skills if skills else GLOBAL_PORTFOLIO_CONFIG["skills"],
+                "experiences": experiences if experiences else GLOBAL_PORTFOLIO_CONFIG["experiences"],
             }
         except Exception as e:
             print(f"[Supabase Read Error] {e}")
 
-    # Default Fallback Data
-    return {
-        "projects": [
-            {
-                "id": "p1",
-                "title": "LLM RS — Clinical Decision Support System",
-                "description": "Sistem dokumentasi klinis otomatis memanfaatkan teknologi LLM.",
-                "image": "",
-                "tags": ["LLM", "Python", "STT", "TTS", "Flask"],
-                "liveUrl": "https://www.leximedai.web.id/",
-                "githubUrl": "https://github.com/IlhamEkaa93",
-                "featured": True,
-                "category": "web",
-            },
-            {
-                "id": "p2",
-                "title": "Personal Portfolio v2",
-                "description": "Portfolio modern React 18, TypeScript, dan FastAPI backend.",
-                "image": "",
-                "tags": ["React", "TypeScript", "FastAPI", "Vite"],
-                "liveUrl": "#",
-                "githubUrl": "https://github.com/IlhamEkaa93",
-                "featured": False,
-                "category": "web",
-            },
-        ],
-        "skills": [
-            {"id": "s1", "name": "JavaScript", "category": "frontend", "level": 88, "icon": "https://upload.wikimedia.org/wikipedia/commons/6/6a/JavaScript-logo.png"},
-            {"id": "s2", "name": "PHP", "category": "frontend", "level": 80, "icon": "https://upload.wikimedia.org/wikipedia/commons/2/27/PHP-logo.svg"},
-            {"id": "s3", "name": "React", "category": "frontend", "level": 85, "icon": "https://upload.wikimedia.org/wikipedia/commons/a/a7/React-icon.svg"},
-            {"id": "s4", "name": "Python / Flask", "category": "backend", "level": 82, "icon": "https://upload.wikimedia.org/wikipedia/commons/c/c3/Python-logo-notext.svg"},
-            {"id": "s5", "name": "MySQL", "category": "backend", "level": 88, "icon": "https://upload.wikimedia.org/wikipedia/labs/8/8e/MySQL_logo.svg"},
-        ],
-        "experiences": [
-            {
-                "id": "e1",
-                "company": "Clinical Decision Support System (LLM RS)",
-                "role": "Backend & AI Integrator",
-                "startDate": "Mar 2026",
-                "endDate": "Present",
-                "description": "Merancang dan mengintegrasikan sistem dokumentasi klinis otomatis.",
-            }
-        ],
-    }
+    return GLOBAL_PORTFOLIO_CONFIG
+
+@app.post("/api/portfolio")
+def save_full_portfolio(config: Dict[str, Any]):
+    """Save full portfolio config globally across all devices."""
+    global GLOBAL_PORTFOLIO_CONFIG
+    GLOBAL_PORTFOLIO_CONFIG.update(config)
+    return {"status": "success", "config": GLOBAL_PORTFOLIO_CONFIG}
 
 # ── Projects CRUD Endpoints ──
 @app.get("/api/projects", response_model=List[ProjectItem])
